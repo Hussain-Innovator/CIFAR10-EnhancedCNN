@@ -8,18 +8,11 @@ __pycache__/
 *.pyd
 .Python
 
-# Model files (too large for GitHub)
-# *.h5
-# *.keras
-# *.weights.h5
-
-# Model files
+# Large model files (block these)
 *.keras
 *.h5
 *.weights.h5
 
-# Allow ONNX
-!*.onnx
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
