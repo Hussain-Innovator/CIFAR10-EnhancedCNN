@@ -196,8 +196,6 @@ def build_cifar10_model():
 @st.cache_resource
 def load_model():
     """Load ONNX model — works on any Python version."""
-    
-    # Get the directory where app.py is located
     app_dir = os.path.dirname(os.path.abspath(__file__))
     
     paths = [
@@ -205,10 +203,6 @@ def load_model():
         "models/model.onnx",
         "../models/model.onnx",
     ]
-    
-    # Debug: show what paths we are checking
-    for path in paths:
-        st.write(f"Checking: `{path}` — exists: {os.path.exists(path)}")
     
     for path in paths:
         if os.path.exists(path):
