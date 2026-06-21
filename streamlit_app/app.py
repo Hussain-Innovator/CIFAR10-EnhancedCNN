@@ -24,7 +24,7 @@ import plotly.graph_objects as go
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CIFAR-10 CNN Classifier",
-    page_icon="🧠",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -509,7 +509,7 @@ with st.sidebar:
 # MAIN HEADER
 # ─────────────────────────────────────────────────────────────────────────────
 
-st.markdown("# 🧠 Enhanced CNN — CIFAR-10 Classifier")
+st.markdown("# Enhanced CNN — CIFAR-10 Classifier")
 st.markdown("### Custom Hybrid Architecture: ResNet + SE Attention + DepthwiseSep + GAP")
 st.markdown("""
 > **Final Year Project | Iqra University**
@@ -525,10 +525,10 @@ with st.spinner("Loading model..."):
     model, model_path = load_model()
 
 if model is None:
-    st.error("❌ Model file not found. Place `model.onnx` in `models/` folder.")
+    st.error("Model file not found. Place `model.onnx` in `models/` folder.")
     st.stop()
 else:
-    st.success(f"✅ Model loaded from: `{model_path}`")
+    st.success(f"Model loaded from: `{model_path}`")
 
 st.markdown("---")
 
@@ -537,9 +537,9 @@ st.markdown("---")
 # ─────────────────────────────────────────────────────────────────────────────
 
 tab1, tab2, tab3 = st.tabs([
-    "🔍 Classify Image",
-    "📊 Model Performance",
-    "🏗️ Architecture"
+    "Classify Image",
+    "Model Performance",
+    "Architecture"
 ])
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -600,13 +600,13 @@ with tab1:
             st.plotly_chart(plot_predictions(probs), use_container_width=True)
 
             if pred_conf >= 80:
-                st.success(f"✅ High confidence: {pred_conf:.1f}%")
+                st.success(f"High confidence: {pred_conf:.1f}%")
             elif pred_conf >= 50:
                 st.warning(f"⚠️ Moderate confidence: {pred_conf:.1f}%")
             else:
-                st.error(f"❌ Low confidence: {pred_conf:.1f}%")
+                st.error(f"Low confidence: {pred_conf:.1f}%")
         else:
-            st.info("👆 Upload an image on the left to classify it.")
+            st.info("Upload an image on the left to classify it.")
             st.markdown("**Supported classes:**")
             cols = st.columns(5)
             for i, name in enumerate(CLASS_NAMES):
@@ -724,7 +724,7 @@ Dense(10, Softmax)
     with col2:
         st.markdown("#### Key Components")
 
-        with st.expander("🔗 Residual Connections", expanded=True):
+        with st.expander("Residual Connections", expanded=True):
             st.markdown("""
             Skip connections add input directly to block output.
             Solves vanishing gradient problem.
@@ -732,7 +732,7 @@ Dense(10, Softmax)
             **Reference:** He et al., ResNet, CVPR 2016
             """)
 
-        with st.expander("👁️ Squeeze-and-Excitation (SE) Block"):
+        with st.expander("Squeeze-and-Excitation (SE) Block"):
             st.markdown("""
             Channel attention — learns which feature maps matter.
             1. Squeeze: GlobalAvgPool → (1,1,C)
@@ -741,14 +741,14 @@ Dense(10, Softmax)
             **Reference:** Hu et al., SENet, CVPR 2018
             """)
 
-        with st.expander("⚡ Depthwise Separable Convolution"):
+        with st.expander("Depthwise Separable Convolution"):
             st.markdown("""
             Splits conv into depthwise + pointwise.
             Reduces parameters ~8-9× vs standard conv.
             **Reference:** Howard et al., MobileNets 2017
             """)
 
-        with st.expander("🎯 Projection Shortcut"):
+        with st.expander("Projection Shortcut"):
             st.markdown("""
             1×1 Conv on skip path when channels change.
             Block 1: 64→64 (identity)
@@ -756,7 +756,7 @@ Dense(10, Softmax)
             Block 3: 128→256 (projection)
             """)
 
-        with st.expander("🌐 Global Average Pooling"):
+        with st.expander("Global Average Pooling"):
             st.markdown("""
             Replaces Flatten + Dense(512).
             4×4×256 → 256-dim vector directly.
@@ -800,7 +800,7 @@ st.markdown("---")
 st.markdown("""
 <div class="footer">
     <p>
-        Built by <strong>Hussain Samdani</strong> |
+        Built by <strong>Hussain</strong> |
         <a href="https://github.com/Hussain-Innovator" target="_blank">GitHub</a> |
         <a href="https://linkedin.com/in/hussain56" target="_blank">LinkedIn</a>
     </p>
