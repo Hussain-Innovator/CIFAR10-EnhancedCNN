@@ -9,18 +9,15 @@ import os
 import warnings
 import logging
 
-os.environ['TF_USE_LEGACY_KERAS']   = '1'
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-os.environ['TF_CPP_MIN_LOG_LEVEL']  = '3'
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
-logging.getLogger('tensorflow').setLevel(logging.ERROR)
+logging.getLogger().setLevel(logging.ERROR)
 
 import time
 import numpy as np
 import pandas as pd
 import streamlit as st
-import tensorflow as tf
-import tf_keras
+import onnxruntime as ort
 from PIL import Image
 import plotly.graph_objects as go
 
@@ -199,23 +196,19 @@ def build_cifar10_model():
 
 @st.cache_resource
 def load_model():
-    weights_paths = [
-        "models/model_weights.weights.h5",
-        "../models/model_weights.weights.h5",
+    """Load ONNX model — works on any Python version."""
+    paths = [
+        "models/model.onnx",
+        "../models/model.onnx",
     ]
-
-    for path in weights_paths:
+    for path in paths:
         if os.path.exists(path):
             try:
-                model = build_cifar10_model()
-                dummy = np.zeros((1, 32, 32, 3), dtype='float32')
-                model(dummy, training=False)
-                model.load_weights(path, by_name=True, skip_mismatch=True)
-                return model, path
+                session = ort.InferenceSession(path)
+                return session, path
             except Exception as e:
-                st.warning(f"Failed loading weights from {path}: {e}")
+                st.warning(f"Failed to load {path}: {e}")
                 continue
-
     return None, None
 
 
@@ -223,14 +216,18 @@ def load_model():
 # HELPER FUNCTIONS
 # ─────────────────────────────────────────────────────────────────────────────
 
-def predict_image(model, image: Image.Image):
-    image     = image.convert("RGB")
+def predict_image(session, image: Image.Image):
+    """Run inference using ONNX runtime."""
+    image       = image.convert("RGB")
     img_resized = image.resize((32, 32), Image.LANCZOS)
-    arr       = np.array(img_resized).astype("float32") / 255.0
-    arr       = np.expand_dims(arr, axis=0)
-    start     = time.time()
-    probs     = model.predict(arr, verbose=0)[0]
-    inf_time  = (time.time() - start) * 1000
+    arr         = np.array(img_resized).astype("float32") / 255.0
+    arr         = np.expand_dims(arr, axis=0)
+
+    input_name  = session.get_inputs()[0].name
+    start       = time.time()
+    probs       = session.run(None, {input_name: arr})[0][0]
+    inf_time    = (time.time() - start) * 1000
+
     return probs, inf_time
 
 
@@ -525,7 +522,7 @@ with st.spinner("Loading model..."):
     model, model_path = load_model()
 
 if model is None:
-    st.error("❌ Model file not found. Place `model_weights.weights.h5` in `models/` folder.")
+    st.error("❌ Model file not found. Place `model.onnx` in `models/` folder.")
     st.stop()
 else:
     st.success(f"✅ Model loaded from: `{model_path}`")

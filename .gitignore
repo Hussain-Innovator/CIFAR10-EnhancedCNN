@@ -9,10 +9,17 @@ __pycache__/
 .Python
 
 # Model files (too large for GitHub)
-*.h5
+# *.h5
+# *.keras
+# *.weights.h5
+
+# Model files
 *.keras
+*.h5
 *.weights.h5
 
+# Allow ONNX
+!*.onnx
 # Jupyter checkpoints
 .ipynb_checkpoints/
 
