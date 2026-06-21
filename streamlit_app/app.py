@@ -9,7 +9,6 @@ import os
 import warnings
 import logging
 
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 warnings.filterwarnings('ignore')
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -24,7 +23,7 @@ import plotly.graph_objects as go
 # ── Page configuration ────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CIFAR-10 CNN Classifier",
-    page_icon="",
+    page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -89,121 +88,18 @@ CLASS_METRICS = {
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MODEL ARCHITECTURE — using tf_keras throughout (no mixing)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def se_block(x, ratio=16):
-    channels = x.shape[-1]
-    se = tf_keras.layers.GlobalAveragePooling2D()(x)
-    se = tf_keras.layers.Dense(
-            channels // ratio,
-            activation='relu',
-            kernel_initializer='he_normal',
-            use_bias=False)(se)
-    se = tf_keras.layers.Dense(
-            channels,
-            activation='sigmoid',
-            kernel_initializer='glorot_uniform',
-            use_bias=False)(se)
-    se = tf_keras.layers.Reshape((1, 1, channels))(se)
-    x  = tf_keras.layers.Multiply()([x, se])
-    return x
-
-
-def residual_block(x, filters, use_depthwise=False, se_ratio=16):
-    in_channels = x.shape[-1]
-    shortcut    = x
-
-    x = tf_keras.layers.Conv2D(
-            filters, 3, padding='same',
-            use_bias=False,
-            kernel_initializer='he_normal')(x)
-    x = tf_keras.layers.BatchNormalization()(x)
-    x = tf_keras.layers.ReLU()(x)
-
-    if use_depthwise:
-        x = tf_keras.layers.DepthwiseConv2D(
-                3, padding='same',
-                use_bias=False,
-                depthwise_initializer='he_normal')(x)
-        x = tf_keras.layers.Conv2D(
-                filters, 1, padding='same',
-                use_bias=False,
-                kernel_initializer='he_normal')(x)
-    else:
-        x = tf_keras.layers.Conv2D(
-                filters, 3, padding='same',
-                use_bias=False,
-                kernel_initializer='he_normal')(x)
-
-    x = tf_keras.layers.BatchNormalization()(x)
-
-    if se_ratio > 0:
-        x = se_block(x, ratio=se_ratio)
-
-    if in_channels != filters:
-        shortcut = tf_keras.layers.Conv2D(
-                        filters, 1, padding='same',
-                        use_bias=False,
-                        kernel_initializer='he_normal')(shortcut)
-        shortcut = tf_keras.layers.BatchNormalization()(shortcut)
-
-    x = tf_keras.layers.Add()([x, shortcut])
-    x = tf_keras.layers.ReLU()(x)
-    return x
-
-
-def build_cifar10_model():
-    inputs = tf_keras.Input(shape=(32, 32, 3), name='input')
-
-    # Stem
-    x = tf_keras.layers.Conv2D(
-            64, 3, padding='same',
-            use_bias=False,
-            kernel_initializer='he_normal',
-            name='stem_conv')(inputs)
-    x = tf_keras.layers.BatchNormalization(name='stem_bn')(x)
-    x = tf_keras.layers.ReLU(name='stem_relu')(x)
-
-    # Block 1 — identity shortcut (64→64)
-    x = residual_block(x, filters=64,  use_depthwise=False, se_ratio=16)
-    x = tf_keras.layers.MaxPooling2D(2, name='pool1')(x)
-    x = tf_keras.layers.Dropout(0.25,  name='drop1')(x)
-
-    # Block 2 — projection shortcut (64→128)
-    x = residual_block(x, filters=128, use_depthwise=True,  se_ratio=16)
-    x = tf_keras.layers.MaxPooling2D(2, name='pool2')(x)
-    x = tf_keras.layers.Dropout(0.25,  name='drop2')(x)
-
-    # Block 3 — projection shortcut (128→256)
-    x = residual_block(x, filters=256, use_depthwise=True,  se_ratio=16)
-    x = tf_keras.layers.MaxPooling2D(2, name='pool3')(x)
-    x = tf_keras.layers.Dropout(0.25,  name='drop3')(x)
-
-    # Head
-    x = tf_keras.layers.GlobalAveragePooling2D(name='gap')(x)
-    x = tf_keras.layers.Dropout(0.4, name='drop_head')(x)
-    outputs = tf_keras.layers.Dense(
-                10, activation='softmax',
-                name='predictions')(x)
-
-    return tf_keras.Model(inputs, outputs, name='EnhancedCNN_CIFAR10')
-
-
-# ─────────────────────────────────────────────────────────────────────────────
 # LOAD MODEL
 # ─────────────────────────────────────────────────────────────────────────────
+
 @st.cache_resource
 def load_model():
     """Load ONNX model — works on any Python version."""
     app_dir = os.path.dirname(os.path.abspath(__file__))
-    
     paths = [
         os.path.join(app_dir, "models", "model.onnx"),
         "models/model.onnx",
         "../models/model.onnx",
     ]
-    
     for path in paths:
         if os.path.exists(path):
             try:
@@ -213,7 +109,6 @@ def load_model():
                 st.warning(f"Failed to load {path}: {e}")
                 continue
     return None, None
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HELPER FUNCTIONS
@@ -225,12 +120,10 @@ def predict_image(session, image: Image.Image):
     img_resized = image.resize((32, 32), Image.LANCZOS)
     arr         = np.array(img_resized).astype("float32") / 255.0
     arr         = np.expand_dims(arr, axis=0)
-
     input_name  = session.get_inputs()[0].name
     start       = time.time()
     probs       = session.run(None, {input_name: arr})[0][0]
     inf_time    = (time.time() - start) * 1000
-
     return probs, inf_time
 
 
@@ -281,7 +174,8 @@ def plot_f1_radar():
         polar=dict(
             radialaxis=dict(
                 visible=True, range=[0.75, 1.0],
-                gridcolor='rgba(255,255,255,0.2)', color='white'
+                gridcolor='rgba(255,255,255,0.2)',
+                color='white'
             ),
             angularaxis=dict(color='white'),
             bgcolor='rgba(30,33,48,0.8)'
@@ -294,14 +188,12 @@ def plot_f1_radar():
     )
     return fig
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────────────────────────────────────
 
 with st.sidebar:
 
-    # ── Title ─────────────────────────────────────────────────────────────────
     st.markdown("""
     <div style="
         background: linear-gradient(135deg, #1a1f3a, #2d3561);
@@ -312,9 +204,7 @@ with st.sidebar:
         text-align: center;
     ">
         <h2 style="color:#ffffff; margin:0; font-size:20px; font-weight:700;
-                   letter-spacing:1px;">
-            CIFAR-10 CNN
-        </h2>
+                   letter-spacing:1px;">CIFAR-10 CNN</h2>
         <p style="color:#8892b0; margin:6px 0 0 0; font-size:13px;">
             Enhanced Hybrid Classifier
         </p>
@@ -325,7 +215,6 @@ with st.sidebar:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Model Stats ───────────────────────────────────────────────────────────
     st.markdown("""
     <p style="color:#8892b0; font-size:11px; letter-spacing:2px;
               text-transform:uppercase; margin-bottom:10px;">
@@ -334,34 +223,24 @@ with st.sidebar:
     """, unsafe_allow_html=True)
 
     stats = [
-        ("Test Accuracy",  "90.93%", "#64ffda"),
-        ("Top-3 Accuracy", "98.71%", "#64ffda"),
-        ("Macro F1 Score", "0.91",   "#a8b2d8"),
+        ("Test Accuracy",  "90.93%",   "#64ffda"),
+        ("Top-3 Accuracy", "98.71%",   "#64ffda"),
+        ("Macro F1 Score", "0.91",     "#a8b2d8"),
         ("Best Epoch",     "86 / 100", "#a8b2d8"),
-        ("Overfit Gap",    "3.4%",   "#a8b2d8"),
+        ("Overfit Gap",    "3.4%",     "#a8b2d8"),
     ]
-
     for label, value, color in stats:
         st.markdown(f"""
-        <div style="
-            background-color: #1e2130;
-            border-left: 3px solid {color};
-            border-radius: 6px;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        ">
+        <div style="background-color:#1e2130; border-left:3px solid {color};
+                    border-radius:6px; padding:10px 14px; margin-bottom:8px;">
             <span style="color:#8892b0; font-size:12px;">{label}</span>
-            <span style="color:{color}; font-weight:700;
-                         font-size:14px;">{value}</span>
+            <span style="color:{color}; font-weight:700; font-size:14px;
+                         float:right;">{value}</span>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Architecture ──────────────────────────────────────────────────────────
     st.markdown("""
     <p style="color:#8892b0; font-size:11px; letter-spacing:2px;
               text-transform:uppercase; margin-bottom:10px;">
@@ -376,29 +255,19 @@ with st.sidebar:
         ("Global Average Pooling",   "Replaces Dense(512) head"),
         ("MixUp Augmentation",       "Label interpolation training"),
     ]
-
     for title, desc in components:
         st.markdown(f"""
-        <div style="
-            background-color: #1e2130;
-            border-radius: 6px;
-            padding: 10px 14px;
-            margin-bottom: 8px;
-            border: 1px solid #2d3250;
-        ">
+        <div style="background-color:#1e2130; border-radius:6px;
+                    padding:10px 14px; margin-bottom:8px;
+                    border:1px solid #2d3250;">
             <div style="color:#ccd6f6; font-size:12px;
-                        font-weight:600; margin-bottom:2px;">
-                {title}
-            </div>
-            <div style="color:#8892b0; font-size:11px;">
-                {desc}
-            </div>
+                        font-weight:600; margin-bottom:2px;">{title}</div>
+            <div style="color:#8892b0; font-size:11px;">{desc}</div>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Training Config ───────────────────────────────────────────────────────
     st.markdown("""
     <p style="color:#8892b0; font-size:11px; letter-spacing:2px;
               text-transform:uppercase; margin-bottom:10px;">
@@ -414,15 +283,10 @@ with st.sidebar:
         ("Dataset",     "CIFAR-10 / 50K imgs"),
         ("Framework",   "TensorFlow 2.15"),
     ]
-
     for key, val in configs:
         st.markdown(f"""
-        <div style="
-            display: flex;
-            justify-content: space-between;
-            padding: 6px 0;
-            border-bottom: 1px solid #1e2130;
-        ">
+        <div style="display:flex; justify-content:space-between;
+                    padding:6px 0; border-bottom:1px solid #1e2130;">
             <span style="color:#8892b0; font-size:11px;">{key}</span>
             <span style="color:#ccd6f6; font-size:11px;
                          font-weight:500;">{val}</span>
@@ -431,7 +295,6 @@ with st.sidebar:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── References ────────────────────────────────────────────────────────────
     st.markdown("""
     <p style="color:#8892b0; font-size:11px; letter-spacing:2px;
               text-transform:uppercase; margin-bottom:10px;">
@@ -446,60 +309,34 @@ with st.sidebar:
         ("MixUp",     "Zhang et al., ICLR 2018"),
         ("BatchNorm", "Ioffe & Szegedy, 2015"),
     ]
-
     for name, cite in refs:
         st.markdown(f"""
-        <div style="margin-bottom: 6px;">
-            <span style="
-                background-color: #2d3561;
-                color: #64ffda;
-                font-size: 10px;
-                font-weight: 600;
-                padding: 2px 7px;
-                border-radius: 10px;
-                margin-right: 6px;
-            ">{name}</span>
+        <div style="margin-bottom:6px;">
+            <span style="background-color:#2d3561; color:#64ffda;
+                         font-size:10px; font-weight:600; padding:2px 7px;
+                         border-radius:10px; margin-right:6px;">{name}</span>
             <span style="color:#8892b0; font-size:11px;">{cite}</span>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Links ─────────────────────────────────────────────────────────────────
     st.markdown("""
     <p style="color:#8892b0; font-size:11px; letter-spacing:2px;
-              text-transform:uppercase; margin-bottom:10px;">
-        Connect
-    </p>
+              text-transform:uppercase; margin-bottom:10px;">Connect</p>
     <div style="display:flex; gap:8px; flex-direction:column;">
         <a href="https://github.com/Hussain-Innovator" target="_blank"
-           style="
-               display:block;
-               background-color:#1e2130;
-               color:#ccd6f6;
-               text-decoration:none;
-               padding:9px 14px;
-               border-radius:6px;
-               font-size:12px;
-               font-weight:500;
-               border:1px solid #2d3250;
-               text-align:center;
-           ">
+           style="display:block; background-color:#1e2130; color:#ccd6f6;
+                  text-decoration:none; padding:9px 14px; border-radius:6px;
+                  font-size:12px; font-weight:500; border:1px solid #2d3250;
+                  text-align:center;">
             GitHub — Hussain-Innovator
         </a>
         <a href="https://linkedin.com/in/hussain56" target="_blank"
-           style="
-               display:block;
-               background-color:#1e2130;
-               color:#ccd6f6;
-               text-decoration:none;
-               padding:9px 14px;
-               border-radius:6px;
-               font-size:12px;
-               font-weight:500;
-               border:1px solid #2d3250;
-               text-align:center;
-           ">
+           style="display:block; background-color:#1e2130; color:#ccd6f6;
+                  text-decoration:none; padding:9px 14px; border-radius:6px;
+                  font-size:12px; font-weight:500; border:1px solid #2d3250;
+                  text-align:center;">
             LinkedIn — hussain56
         </a>
     </div>
@@ -510,12 +347,9 @@ with st.sidebar:
 # ─────────────────────────────────────────────────────────────────────────────
 
 st.markdown("# Enhanced CNN — CIFAR-10 Classifier")
-st.markdown("### Custom Hybrid Architecture: ResNet + SE Attention + DepthwiseSep + GAP")
-st.markdown("""
-> **Final Year Project | Iqra University**
-> Trained on 50,000 images across 10 classes.
-> Achieves **90.93% test accuracy** with a macro F1 of **0.91**.
-""")
+st.markdown(
+    "### Custom Hybrid Architecture: ResNet + SE Attention + DepthwiseSep + GAP"
+)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LOAD MODEL
@@ -528,7 +362,7 @@ if model is None:
     st.error("Model file not found. Place `model.onnx` in `models/` folder.")
     st.stop()
 else:
-    st.success(f"Model Loaded Successfully")
+    st.success("Model Loaded Successfully")
 
 st.markdown("---")
 
@@ -594,24 +428,28 @@ with tab1:
             for rank, idx in enumerate(top3_idx, 1):
                 st.markdown(
                     f"`#{rank}` {CLASS_EMOJIS[CLASS_NAMES[idx]]} "
-                    f"**{CLASS_NAMES[idx].capitalize()}** — {probs[idx]*100:.1f}%"
+                    f"**{CLASS_NAMES[idx].capitalize()}** "
+                    f"— {probs[idx]*100:.1f}%"
                 )
 
-            st.plotly_chart(plot_predictions(probs), use_container_width=True)
+            st.plotly_chart(
+                plot_predictions(probs),
+                use_container_width=True
+            )
 
             if pred_conf >= 80:
-                st.success(f"High confidence: {pred_conf:.1f}%")
+                st.success(f"High confidence prediction: {pred_conf:.1f}%")
             elif pred_conf >= 50:
-                st.warning(f"⚠️ Moderate confidence: {pred_conf:.1f}%")
+                st.warning(f"Moderate confidence: {pred_conf:.1f}%")
             else:
-                st.error(f"Low confidence: {pred_conf:.1f}%")
+                st.error(f"Low confidence: {pred_conf:.1f}% — image may not match CIFAR-10 categories well.")
         else:
             st.info("Upload an image on the left to classify it.")
             st.markdown("**Supported classes:**")
             cols = st.columns(5)
             for i, name in enumerate(CLASS_NAMES):
                 with cols[i % 5]:
-                    st.markdown(f"{CLASS_EMOJIS[name]} {name.capitalize()}")
+                    st.markdown(f"- {name.capitalize()}")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — MODEL PERFORMANCE
@@ -624,22 +462,25 @@ with tab2:
     m2.metric("Top-3 Accuracy", "98.71%")
     m3.metric("Macro F1",       "0.91")
     m4.metric("Best Epoch",     "86")
-    m5.metric("Overfit Gap",    "3.4%", "healthy")
+    m5.metric("Overfit Gap",    "3.4%",   "healthy")
 
     st.markdown("---")
     col1, col2 = st.columns(2)
 
     with col1:
         st.markdown("#### Training Curves")
-        if os.path.exists("assets/training_curves.png"):
-            st.image("assets/training_curves.png", use_column_width=True)
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        curves  = os.path.join(app_dir, "assets", "training_curves.png")
+        if os.path.exists(curves):
+            st.image(curves, use_column_width=True)
         else:
             st.info("Add training_curves.png to assets/ folder")
 
     with col2:
         st.markdown("#### Confusion Matrix")
-        if os.path.exists("assets/confusion_matrix.png"):
-            st.image("assets/confusion_matrix.png", use_column_width=True)
+        cm = os.path.join(app_dir, "assets", "confusion_matrix.png")
+        if os.path.exists(cm):
+            st.image(cm, use_column_width=True)
         else:
             st.info("Add confusion_matrix.png to assets/ folder")
 
@@ -671,8 +512,9 @@ with tab2:
 
     st.markdown("---")
     st.markdown("#### Sample Predictions on Test Set")
-    if os.path.exists("assets/sample_predictions.png"):
-        st.image("assets/sample_predictions.png", use_column_width=True)
+    preds = os.path.join(app_dir, "assets", "sample_predictions.png")
+    if os.path.exists(preds):
+        st.image(preds, use_column_width=True)
     else:
         st.info("Add sample_predictions.png to assets/ folder")
 
@@ -800,10 +642,13 @@ st.markdown("---")
 st.markdown("""
 <div class="footer">
     <p>
-        Built by <strong>Hussain</strong> |
-        <a href="https://github.com/Hussain-Innovator" target="_blank">GitHub</a> |
-        <a href="https://linkedin.com/in/hussain56" target="_blank">LinkedIn</a>
+        Built by <strong>Hussain Samdani</strong> |
+        <a href="https://github.com/Hussain-Innovator"
+           target="_blank">GitHub</a> |
+        <a href="https://linkedin.com/in/hussain56"
+           target="_blank">LinkedIn</a>
     </p>
-    <p>TensorFlow 2.15 · Streamlit · CIFAR-10 · ResNet · SENet · MobileNets · MixUp</p>
+    <p>ONNX Runtime · Streamlit · CIFAR-10 ·
+       ResNet · SENet · MobileNets · MixUp</p>
 </div>
 """, unsafe_allow_html=True)
