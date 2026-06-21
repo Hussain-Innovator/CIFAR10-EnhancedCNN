@@ -528,7 +528,7 @@ if model is None:
     st.error("Model file not found. Place `model.onnx` in `models/` folder.")
     st.stop()
 else:
-    st.success(f"Model loaded from: `{model_path}`")
+    st.success(f"Model Loaded Successfully")
 
 st.markdown("---")
 
